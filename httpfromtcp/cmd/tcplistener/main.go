@@ -34,6 +34,8 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 				currentLine = parts[len(parts)-1]
 			}
 		}
+		// flush
+		c <- currentLine
 		close(c)
 	}(c)
 
