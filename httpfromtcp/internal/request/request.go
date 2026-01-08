@@ -7,8 +7,18 @@ import (
 	"unicode"
 )
 
+type ParseState int
+
+const (
+	initialised ParseState = iota
+	done
+)
+
+const bufferSize int = 8
+
 type Request struct {
 	RequestLine RequestLine
+	ParseState  ParseState
 }
 
 type RequestLine struct {
@@ -17,39 +27,89 @@ type RequestLine struct {
 	Method        string
 }
 
-func parseRequestLine(r string) (RequestLine, error) {
-	parts := strings.Split(r, " ")
+func parseRequestLine(r string) (RequestLine, int, error) {
+	lines := strings.Split(r, "\r\n")
+	if len(lines) == 1 {
+		return RequestLine{}, 0, nil
+	}
+
+	parts := strings.Split(lines[0], " ")
 	if len(parts) != 3 {
-		return RequestLine{}, fmt.Errorf("invalid request line '%s'", r)
+		return RequestLine{}, 0, fmt.Errorf("invalid request line '%s'", r)
 	}
 
 	method := parts[0]
 	for _, c := range method {
 		if !unicode.IsUpper(c) || !unicode.IsLetter(c) {
-			return RequestLine{}, fmt.Errorf("method: '%s' is not valid", method)
+			return RequestLine{}, 0, fmt.Errorf("method: '%s' is not valid", method)
 		}
 	}
 
 	version := strings.Split(parts[len(parts)-1], "/")[1]
 	if version != "1.1" {
-		return RequestLine{}, fmt.Errorf("version: '%s' is not valid", version)
+		return RequestLine{}, 0, fmt.Errorf("version: '%s' is not valid", version)
 	}
+
+	requestTarget := parts[1]
 
 	return RequestLine{
 		HttpVersion:   version,
-		RequestTarget: parts[1],
+		RequestTarget: requestTarget,
 		Method:        method,
-	}, nil
+	}, len(lines[0]) + 2, nil // + 2 to include \r\n
+}
+
+func (r *Request) parse(data []byte) (int, error) {
+	if r.ParseState == initialised {
+		rl, n, err := parseRequestLine(string(data))
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			return 0, nil
+		}
+
+		r.RequestLine = rl
+		r.ParseState = done
+
+		return n, nil
+	} else if r.ParseState == done {
+		return 0, fmt.Errorf("trying to read data in a done state")
+	}
+
+	return 0, fmt.Errorf("unknown state")
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	b, err := io.ReadAll(reader)
-	lines := strings.Split(string(b[:]), "\r\n")
+	buf := make([]byte, bufferSize, bufferSize)
+	readToIndex := 0
+	requestLineLength := 0
+	r := Request{ParseState: initialised}
 
-	rl, err := parseRequestLine(lines[0])
-	if err != nil {
-		return &Request{rl}, err
+	for r.ParseState != done {
+		if readToIndex == len(buf) {
+			tmp := make([]byte, len(buf)*2)
+			copy(tmp, buf)
+			buf = tmp
+		}
+
+		n, err := reader.Read(buf[readToIndex:])
+		if err == io.EOF {
+			r.ParseState = done
+			break
+		}
+		readToIndex += n
+
+		requestLineLength, err = r.parse(buf[:readToIndex])
+		if err != nil {
+			return &r, err
+		}
 	}
 
-	return &Request{rl}, nil
+	tmp := make([]byte, readToIndex-requestLineLength)
+	copy(tmp, buf[requestLineLength:])
+	buf = tmp
+	readToIndex -= requestLineLength
+
+	return &r, nil
 }
