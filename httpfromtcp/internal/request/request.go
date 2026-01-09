@@ -94,11 +94,11 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 		n, err := reader.Read(buf[readToIndex:])
+		readToIndex += n
+
 		if err == io.EOF {
-			r.ParseState = done
 			break
 		}
-		readToIndex += n
 
 		requestLineLength, err = r.parse(buf[:readToIndex])
 		if err != nil {
