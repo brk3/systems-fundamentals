@@ -55,4 +55,14 @@ func TestHeaderParse(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 0, n)
 	assert.False(t, done)
+
+	// Test: Multiple same keys are appended
+	headers = Headers{
+		"host": "localhost:42069",
+	}
+	data = []byte("host: 127.0.0.1:8080\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:42069, 127.0.0.1:8080", headers["host"])
 }

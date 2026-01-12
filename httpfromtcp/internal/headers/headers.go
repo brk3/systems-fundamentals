@@ -34,7 +34,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, fmt.Errorf("invalid header '%s'", rawHeader)
 	}
 
-	h[strings.ToLower(strings.TrimSpace(string(key)))] = strings.TrimSpace(string(value))
+	k := strings.ToLower(strings.TrimSpace(string(key)))
+	val, found := h[k]
+	if found {
+		h[k] = strings.Join([]string{val, strings.TrimSpace(string(value))}, ", ")
+	} else {
+		h[k] = strings.TrimSpace(string(value))
+	}
 	return clrfIndex + 2, false, nil
 }
 
