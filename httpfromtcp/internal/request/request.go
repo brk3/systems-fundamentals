@@ -5,19 +5,23 @@ import (
 	"io"
 	"strings"
 	"unicode"
+
+	"httpfromtcp/internal/headers"
 )
 
 type ParseState int
 
 const (
 	initialised ParseState = iota
-	done
+	requestStateParsingHeaders
+	requestStateDone
 )
 
 const bufferSize int = 8
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers
 	ParseState  ParseState
 }
 
@@ -60,20 +64,31 @@ func parseRequestLine(r string) (RequestLine, int, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.ParseState == initialised {
+	switch r.ParseState {
+	case initialised:
 		rl, n, err := parseRequestLine(string(data))
 		if err != nil {
 			return 0, err
-		}
-		if n == 0 {
+		} else if n == 0 {
 			return 0, nil
+		} else {
+			r.RequestLine = rl
+			r.ParseState = requestStateParsingHeaders
 		}
-
-		r.RequestLine = rl
-		r.ParseState = done
-
 		return n, nil
-	} else if r.ParseState == done {
+	case requestStateParsingHeaders:
+		for {
+			n, done, err := r.Headers.Parse(data)
+			if err != nil {
+				return 0, err
+			}
+			if done {
+				r.ParseState = requestStateDone
+				return 0, nil
+			}
+			return n, nil
+		}
+	case requestStateDone:
 		return 0, fmt.Errorf("trying to read data in a done state")
 	}
 
@@ -83,10 +98,12 @@ func (r *Request) parse(data []byte) (int, error) {
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, bufferSize, bufferSize)
 	readToIndex := 0
-	requestLineLength := 0
-	r := Request{ParseState: initialised}
+	r := Request{
+		ParseState: initialised,
+		Headers:    headers.Headers{},
+	}
 
-	for r.ParseState != done {
+	for r.ParseState != requestStateDone {
 		if readToIndex == len(buf) {
 			tmp := make([]byte, len(buf)*2)
 			copy(tmp, buf)
@@ -95,21 +112,19 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		n, err := reader.Read(buf[readToIndex:])
 		readToIndex += n
-
 		if err == io.EOF {
 			break
 		}
 
-		requestLineLength, err = r.parse(buf[:readToIndex])
+		n, err = r.parse(buf[:readToIndex])
 		if err != nil {
 			return &r, err
 		}
+		if n > 0 {
+			copy(buf, buf[n:readToIndex])
+			readToIndex -= n
+		}
 	}
-
-	tmp := make([]byte, readToIndex-requestLineLength)
-	copy(tmp, buf[requestLineLength:])
-	buf = tmp
-	readToIndex -= requestLineLength
 
 	return &r, nil
 }
