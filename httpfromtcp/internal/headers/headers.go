@@ -44,6 +44,11 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	return clrfIndex + 2, false, nil
 }
 
+func (h Headers) Get(key string) (string, bool) {
+	val, found := h[key]
+	return val, found
+}
+
 func validFieldName(name []byte) bool {
 	if len(name) < 1 {
 		return false

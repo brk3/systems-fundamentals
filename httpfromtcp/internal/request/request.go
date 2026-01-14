@@ -3,6 +3,7 @@ package request
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -14,6 +15,7 @@ type ParseState int
 const (
 	initialised ParseState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -22,6 +24,7 @@ const bufferSize int = 8
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 	ParseState  ParseState
 }
 
@@ -63,6 +66,16 @@ func parseRequestLine(r string) (RequestLine, int, error) {
 	}, len(lines[0]) + 2, nil // + 2 to include \r\n
 }
 
+func (r *Request) parseBody(data []byte, contentLength int) ([]byte, int, error) {
+	if len(data) > contentLength {
+		return nil, 0, fmt.Errorf("got more data than specified by content-length header")
+	}
+	if len(data) == contentLength {
+		return data, contentLength, nil
+	}
+	return nil, 0, nil
+}
+
 func (r *Request) parse(data []byte) (int, error) {
 	switch r.ParseState {
 	case initialised:
@@ -83,11 +96,31 @@ func (r *Request) parse(data []byte) (int, error) {
 				return 0, err
 			}
 			if done {
-				r.ParseState = requestStateDone
-				return 0, nil
+				r.ParseState = requestStateParsingBody
+				return 2, nil
 			}
 			return n, nil
 		}
+	case requestStateParsingBody:
+		cl, found := r.Headers.Get("content-length")
+		if !found {
+			r.ParseState = requestStateDone
+			return 0, nil
+		}
+		clInt, err := strconv.Atoi(cl)
+		if err != nil {
+			return 0, err
+		}
+		body, n, err := r.parseBody(data, clInt)
+		if err != nil {
+			return 0, err
+		} else if n == 0 {
+			return 0, nil
+		} else {
+			r.Body = body
+			r.ParseState = requestStateDone
+		}
+		return n, nil
 	case requestStateDone:
 		return 0, fmt.Errorf("trying to read data in a done state")
 	}
