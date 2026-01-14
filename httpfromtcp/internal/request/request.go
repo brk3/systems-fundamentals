@@ -113,12 +113,20 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		n, err := reader.Read(buf[readToIndex:])
 		readToIndex += n
 		if err == io.EOF {
+			// final parse if anything left in buffer
+			n, err = r.parse(buf[:readToIndex])
+			if err != nil {
+				return nil, err
+			}
+			if r.ParseState != requestStateDone {
+				return nil, fmt.Errorf("unexpected EOF, request incomplete")
+			}
 			break
 		}
 
 		n, err = r.parse(buf[:readToIndex])
 		if err != nil {
-			return &r, err
+			return nil, err
 		}
 		if n > 0 {
 			copy(buf, buf[n:readToIndex])

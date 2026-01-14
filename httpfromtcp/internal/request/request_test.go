@@ -94,13 +94,42 @@ func TestHeadersParse(t *testing.T) {
 	r, err = RequestFromReader(reader)
 	require.Error(t, err)
 
-	// TODO: implement
-	// Standard Headers
-	// Empty Headers
-	// Malformed Header
-	// Duplicate Headers
-	// Case Insensitive Headers
-	// Missing End of Headers
+	// Test: Empty Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, len(r.Headers), 0)
+
+	// Test: Duplicate Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nFoo: a\r\nFoo: b\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, len(r.Headers), 1)
+	assert.Equal(t, "a, b", r.Headers["foo"])
+
+	// Test: Missing End of Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost localhost:42069",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.Error(t, err)
+
+	// Test: Partial Missing End of Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost localhost:42069\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.Error(t, err)
 }
 
 // Read reads up to len(p) or numBytesPerRead bytes from the string per call
