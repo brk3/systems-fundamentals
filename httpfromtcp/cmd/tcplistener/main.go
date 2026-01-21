@@ -11,11 +11,11 @@ import (
 
 func main() {
 	ln, err := net.Listen("tcp", ":42069")
-	defer ln.Close()
-	log.Println("listening on :42069")
 	if err != nil {
 		panic(err)
 	}
+	defer ln.Close()
+	log.Println("listening on :42069")
 
 	for {
 		conn, err := ln.Accept()
