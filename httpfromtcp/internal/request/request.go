@@ -90,17 +90,20 @@ func (r *Request) parse(data []byte) (int, error) {
 		}
 		return n, nil
 	case requestStateParsingHeaders:
-		for {
-			n, done, err := r.Headers.Parse(data)
-			if err != nil {
-				return 0, err
-			}
-			if done {
-				r.ParseState = requestStateParsingBody
-				return 2, nil
-			}
-			return n, nil
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
 		}
+		if done {
+			_, found := r.Headers.Get("content-length")
+			if !found {
+				r.ParseState = requestStateDone
+			} else {
+				r.ParseState = requestStateParsingBody
+			}
+			return 2, nil
+		}
+		return n, nil
 	case requestStateParsingBody:
 		cl, found := r.Headers.Get("content-length")
 		if !found {
@@ -129,7 +132,7 @@ func (r *Request) parse(data []byte) (int, error) {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	buf := make([]byte, bufferSize, bufferSize)
+	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	r := Request{
 		ParseState: initialised,
