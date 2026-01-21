@@ -95,8 +95,16 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, err
 		}
 		if done {
-			_, found := r.Headers.Get("content-length")
+			cl, found := r.Headers.Get("content-length")
 			if !found {
+				r.ParseState = requestStateDone
+				return 2, nil
+			}
+			clInt, err := strconv.Atoi(cl)
+			if err != nil {
+				return 0, err
+			}
+			if clInt <= 0 {
 				r.ParseState = requestStateDone
 			} else {
 				r.ParseState = requestStateParsingBody
