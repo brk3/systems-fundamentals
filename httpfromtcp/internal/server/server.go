@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+
+	"httpfromtcp/internal/response"
 )
 
 type Server struct {
@@ -34,8 +36,23 @@ func (s *Server) listen() {
 }
 
 func (s *Server) handle(conn net.Conn) {
-	fmt.Fprintf(conn, "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 13\n\nHello World!\n")
-	conn.Close()
+	// TODO: this is breaking the connection prematurely
+	// defer conn.Close()
+
+	err := response.WriteStatusLine(conn, 200)
+	if err != nil {
+		panic(err)
+	}
+
+	body := "Hello World!\n"
+	h := response.GetDefaultHeaders(len(body))
+	err = response.WriteHeaders(conn, h)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintf(conn, "\n")
+	fmt.Fprint(conn, body)
 }
 
 func (s *Server) Close() error {
