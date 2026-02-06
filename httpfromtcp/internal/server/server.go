@@ -39,17 +39,6 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-    // reader := bufio.NewReader(conn)
-    // for {
-    //     line, err := reader.ReadString('\n')
-    //     if err != nil {
-    //         break
-    //     }
-    //     // HTTP headers end with a blank line (\r\n)
-    //     if line == "\r\n" || line == "\n" {
-    //         break
-    //     }
-    // }
 	_, err := request.RequestFromReader(conn)
 	if err != nil {
 		_ = fmt.Errorf("error reading request: %v", err)

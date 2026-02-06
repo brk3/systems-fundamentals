@@ -147,6 +147,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		Headers:    headers.Headers{},
 	}
 
+	needData := true
 	for r.ParseState != requestStateDone {
 		if readToIndex == len(buf) {
 			tmp := make([]byte, len(buf)*2)
@@ -154,27 +155,28 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			buf = tmp
 		}
 
-		n, err := reader.Read(buf[readToIndex:])
-		readToIndex += n
-		if err == io.EOF {
-			// final parse if anything left in buffer
-			n, err = r.parse(buf[:readToIndex])
+		if needData {
+			n, err := reader.Read(buf[readToIndex:])
+			readToIndex += n
 			if err != nil {
-				return nil, err
+				if err == io.EOF && r.ParseState != requestStateDone {
+					return nil, fmt.Errorf("unexpected EOF, request incomplete")
+				}
+				_ = fmt.Errorf("error reading from connection %v", err)
+				break
 			}
-			if r.ParseState != requestStateDone {
-				return nil, fmt.Errorf("unexpected EOF, request incomplete")
-			}
-			break
 		}
 
-		n, err = r.parse(buf[:readToIndex])
+		n, err := r.parse(buf[:readToIndex])
 		if err != nil {
 			return nil, err
 		}
 		if n > 0 {
 			copy(buf, buf[n:readToIndex])
 			readToIndex -= n
+			needData = false
+		} else {
+			needData = true
 		}
 	}
 
