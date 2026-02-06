@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 
+	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 )
 
@@ -36,22 +37,37 @@ func (s *Server) listen() {
 }
 
 func (s *Server) handle(conn net.Conn) {
-	// TODO: this is breaking the connection prematurely
-	// defer conn.Close()
+	defer conn.Close()
 
-	err := response.WriteStatusLine(conn, 200)
+    // reader := bufio.NewReader(conn)
+    // for {
+    //     line, err := reader.ReadString('\n')
+    //     if err != nil {
+    //         break
+    //     }
+    //     // HTTP headers end with a blank line (\r\n)
+    //     if line == "\r\n" || line == "\n" {
+    //         break
+    //     }
+    // }
+	_, err := request.RequestFromReader(conn)
 	if err != nil {
-		panic(err)
+		_ = fmt.Errorf("error reading request: %v", err)
+	}
+
+	err = response.WriteStatusLine(conn, 200)
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	body := "Hello World!\n"
 	h := response.GetDefaultHeaders(len(body))
 	err = response.WriteHeaders(conn, h)
 	if err != nil {
-		panic(err)
+		_ = fmt.Errorf("error writing headers: %v", err)
 	}
 
-	fmt.Fprintf(conn, "\n")
+	fmt.Fprintf(conn, "\r\n")
 	fmt.Fprint(conn, body)
 }
 
