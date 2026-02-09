@@ -13,20 +13,20 @@ type StatusCode int
 const HTTPVersion = "HTTP/1.1"
 
 const (
-	statusOk         StatusCode = 200
-	statusBadRequest StatusCode = 400
-	statusError      StatusCode = 500
+	StatusOk         StatusCode = 200
+	StatusBadRequest StatusCode = 400
+	StatusError      StatusCode = 500
 )
 
 func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 	switch statusCode {
-	case statusOk:
+	case StatusOk:
 		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "OK")
 		return err
-	case statusBadRequest:
+	case StatusBadRequest:
 		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "Bad Request")
 		return err
-	case statusError:
+	case StatusError:
 		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "Internal Server Error")
 		return err
 	default:
