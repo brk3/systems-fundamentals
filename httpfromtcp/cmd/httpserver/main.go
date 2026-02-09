@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -14,22 +14,34 @@ import (
 
 const port = 42069
 
-func testHandler(w io.Writer, req *request.Request) *server.HandlerError {
+func testHandler(w *response.Writer, req *request.Request) {
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
-		return &server.HandlerError{
-			StatusCode: response.StatusBadRequest,
-			Message:    "Your problem is not my problem\n",
+		body := "Your problem is not my problem\n"
+
+		err := w.WriteStatusLine(response.StatusBadRequest)
+		if err != nil {
+			_ = fmt.Errorf("error writing status line: %v", err)
 		}
-	case "/myproblem":
-		return &server.HandlerError{
-			StatusCode: response.StatusError,
-			Message:    "Woopsie, my bad\n",
+
+		defaultHeaders := response.GetDefaultHeaders(len(body))
+		err = w.WriteHeaders(defaultHeaders)
+		if err != nil {
+			_ = fmt.Errorf("error writing headers: %v", err)
 		}
-	default:
-		w.Write([]byte("All good, frfr\n"))
+
+		_, err = w.WriteBody([]byte(body))
+		if err != nil {
+			_ = fmt.Errorf("error writing body: %v", err)
+		}
+		// case "/myproblem":
+		// 	return &server.HandlerError{
+		// 		StatusCode: response.StatusError,
+		// 		Message:    "Woopsie, my bad\n",
+		// 	}
+		// default:
+		// 	w.Write([]byte("All good, frfr\n"))
 	}
-	return nil
 }
 
 func main() {

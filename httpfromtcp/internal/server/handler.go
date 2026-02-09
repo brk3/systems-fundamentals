@@ -3,7 +3,6 @@ package server
 import (
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
-	"io"
 )
 
 type HandlerError struct {
@@ -11,4 +10,4 @@ type HandlerError struct {
 	Message    string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
