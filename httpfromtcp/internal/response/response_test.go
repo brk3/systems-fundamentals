@@ -11,15 +11,19 @@ import (
 func TestWriteStatusLine(t *testing.T) {
 	// Test: HTTP OK
 	buf := &bytes.Buffer{}
-	err := WriteStatusLine(buf, 200)
+	w := Writer{
+		Writer:      buf,
+		WriterState: WriterStateStatusLine,
+	}
+	err := w.WriteStatusLine(StatusOk)
 	require.NoError(t, err)
-	assert.Equal(t, "HTTP/1.1 200 OK\n", buf.String())
+	assert.Equal(t, "HTTP/1.1 200 OK\r\n", buf.String())
 }
 
 func TestDefaultHeaders(t *testing.T) {
 	// Test response is as expected
 	h := GetDefaultHeaders(10)
 	assert.Equal(t, len(h), 3)
-	cl, _ := h["Content-Length"]
+	cl, _ := h["content-length"]
 	assert.Equal(t, "10", cl)
 }

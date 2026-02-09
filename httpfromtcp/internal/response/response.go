@@ -3,14 +3,13 @@ package response
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"httpfromtcp/internal/headers"
 )
 
-type StatusCode int
-
 const HTTPVersion = "HTTP/1.1"
+
+type StatusCode int
 
 const (
 	StatusOk         StatusCode = 200
@@ -18,37 +17,73 @@ const (
 	StatusError      StatusCode = 500
 )
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
-	switch statusCode {
-	case StatusOk:
-		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "OK")
-		return err
-	case StatusBadRequest:
-		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "Bad Request")
-		return err
-	case StatusError:
-		_, err := fmt.Fprintf(w, "%s %d %s\n", HTTPVersion, statusCode, "Internal Server Error")
-		return err
-	default:
-		_, err := fmt.Fprintf(w, "%s %d\n", HTTPVersion, statusCode)
-		return err
-	}
+type WriterState int
+
+const (
+	WriterStateStatusLine WriterState = iota
+	WriterStateHeaders
+	WriterStateBody
+)
+
+type Writer struct {
+	Writer      io.Writer
+	WriterState WriterState
 }
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
 	return headers.Headers{
-		"Content-Length": strconv.Itoa(contentLen),
-		"Connection":     "close",
-		"Content-Type":   "text/plain",
+		"content-length": fmt.Sprint(contentLen),
+		"connection":     "close",
+		"content-type":   "text/plain",
 	}
 }
 
-func WriteHeaders(w io.Writer, headers headers.Headers) error {
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
+	if w.WriterState != WriterStateStatusLine {
+		return fmt.Errorf("error: unexpected writerState %d when calling WriteStatusLine", w.WriterState)
+	}
+	var reason string
+	switch statusCode {
+	case StatusOk:
+		reason = "OK"
+	case StatusBadRequest:
+		reason = "Bad Request"
+	case StatusError:
+		reason = "Internal Server Error"
+	default:
+		reason = "Unknown"
+	}
+
+	_, err := fmt.Fprintf(w.Writer, "%s %d %s\r\n", HTTPVersion, statusCode, reason)
+	if err == nil {
+		w.WriterState = WriterStateHeaders
+	}
+	return err
+}
+
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
+	if w.WriterState != WriterStateHeaders {
+		return fmt.Errorf("error: unexpected writerState %d when calling WriteHeaders", w.WriterState)
+	}
+	// TODO: merge with default
 	for key, val := range headers {
-		_, err := fmt.Fprintf(w, "%s: %s\n", key, val)
+		_, err := fmt.Fprintf(w.Writer, "%s: %s\n", key, val)
 		if err != nil {
 			return err
 		}
 	}
+	_, err := fmt.Fprint(w.Writer, "\r\n")
+	if err != nil {
+		return err
+	}
+	w.WriterState = WriterStateBody
 	return nil
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	if w.WriterState != WriterStateBody {
+		return 0, fmt.Errorf("error: unexpected writerState %d when calling WriteBody", w.WriterState)
+	}
+	n, err := w.Writer.Write(p)
+	return n, err
 }

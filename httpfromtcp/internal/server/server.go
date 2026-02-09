@@ -1,10 +1,8 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"net"
-	"strconv"
 
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
@@ -35,7 +33,7 @@ func (s *Server) listen() {
 		// Wait for a connection.
 		conn, err := s.listener.Accept()
 		if err != nil {
-			panic(err)
+			_ = fmt.Errorf("error accepting connection: %v", err)
 		}
 		go s.handle(conn)
 	}
@@ -49,30 +47,11 @@ func (s *Server) handle(conn net.Conn) {
 		_ = fmt.Errorf("error reading request: %v", err)
 	}
 
-	hBuf := &bytes.Buffer{}
-	hErr := s.handler(hBuf, req)
-	statusCode := response.StatusOk
-	body := hBuf.String()
-	if hErr != nil {
-		statusCode = hErr.StatusCode
-		body = hErr.Message
+	response := &response.Writer{
+		Writer:      conn,
+		WriterState: response.WriterStateStatusLine,
 	}
-
-	err = response.WriteStatusLine(conn, statusCode)
-	if err != nil {
-		_ = fmt.Errorf("error writing status line: %v", err)
-	}
-
-	h := response.GetDefaultHeaders(len(body))
-	err = response.WriteHeaders(conn, h)
-	if err != nil {
-		_ = fmt.Errorf("error writing headers: %v", err)
-	}
-
-	if len(body) > 0 {
-		fmt.Fprintf(conn, "\r\n")
-		fmt.Fprint(conn, body)
-	}
+	s.handler(response, req)
 }
 
 func (s *Server) Close() error {
