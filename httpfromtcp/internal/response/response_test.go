@@ -18,6 +18,15 @@ func TestWriteStatusLine(t *testing.T) {
 	err := w.WriteStatusLine(StatusOk)
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP/1.1 200 OK\r\n", buf.String())
+
+	// Test: invalid Writer state
+	buf = &bytes.Buffer{}
+	w = Writer{
+		Writer:      buf,
+		WriterState: WriterStateHeaders,
+	}
+	err = w.WriteStatusLine(StatusOk)
+	require.Error(t, err)
 }
 
 func TestDefaultHeaders(t *testing.T) {

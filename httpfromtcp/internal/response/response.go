@@ -65,7 +65,6 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	if w.WriterState != WriterStateHeaders {
 		return fmt.Errorf("error: unexpected writerState %d when calling WriteHeaders", w.WriterState)
 	}
-	// TODO: merge with default
 	for key, val := range headers {
 		_, err := fmt.Fprintf(w.Writer, "%s: %s\n", key, val)
 		if err != nil {
