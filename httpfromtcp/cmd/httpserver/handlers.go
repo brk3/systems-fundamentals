@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"httpfromtcp/internal/headers"
@@ -70,6 +71,37 @@ func testHandler(w *response.Writer, req *request.Request) {
 </html>
 `
 		writeHTML(w, response.StatusOk, body)
+	}
+}
+
+func videoHandler(w *response.Writer, req *request.Request) {
+	b, err := os.ReadFile("/Users/pbourke/sandbox/boot.dev/httpfromtcp/assets/vim.mp4")
+	if err != nil {
+		log.Printf("error reading local video file: %v", err)
+		return
+	}
+
+	// write status line
+	err = w.WriteStatusLine(response.StatusOk)
+	if err != nil {
+		log.Printf("error writing status line: %v", err)
+		return
+	}
+
+	// write headers
+	h := response.GetDefaultHeaders(len(b))
+	h.Set("Content-Type", "video/mp4")
+	err = w.WriteHeaders(h)
+	if err != nil {
+		log.Printf("error writing headers: %v", err)
+		return
+	}
+
+	// write binary body
+	_, err = w.WriteBody(b)
+	if err != nil {
+		log.Printf("error writing video to response: %v", err)
+		return
 	}
 }
 

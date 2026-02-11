@@ -17,6 +17,8 @@ const port = 42069
 func router(w *response.Writer, req *request.Request) {
 	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
 		httpBinHandler(w, req)
+	} else if req.RequestLine.RequestTarget == "/video" {
+		videoHandler(w, req)
 	} else {
 		testHandler(w, req)
 	}
