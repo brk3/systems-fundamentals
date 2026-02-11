@@ -34,19 +34,25 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, fmt.Errorf("invalid header '%s'", rawHeader)
 	}
 
-	k := strings.ToLower(strings.TrimSpace(string(key)))
+	h.Set(string(key), string(value))
+
+	return clrfIndex + 2, false, nil
+}
+
+func (h Headers) Get(key string) (string, bool) {
+	k := strings.ToLower(strings.TrimSpace(key))
 	val, found := h[k]
+	return val, found
+}
+
+func (h Headers) Set(key string, value string) {
+	k := strings.ToLower(strings.TrimSpace(key))
+	val, found := h.Get(k)
 	if found {
 		h[k] = strings.Join([]string{val, strings.TrimSpace(string(value))}, ", ")
 	} else {
 		h[k] = strings.TrimSpace(string(value))
 	}
-	return clrfIndex + 2, false, nil
-}
-
-func (h Headers) Get(key string) (string, bool) {
-	val, found := h[strings.ToLower(key)]
-	return val, found
 }
 
 func validFieldName(name []byte) bool {

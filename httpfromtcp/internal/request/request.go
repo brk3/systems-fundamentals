@@ -3,6 +3,7 @@ package request
 import (
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -162,7 +163,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 				if err == io.EOF && r.ParseState != requestStateDone {
 					return nil, fmt.Errorf("unexpected EOF, request incomplete")
 				}
-				_ = fmt.Errorf("error reading from connection %v", err)
+				log.Printf("error reading from connection %v", err)
 				break
 			}
 		}

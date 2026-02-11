@@ -31,11 +31,13 @@ type Writer struct {
 }
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
-	return headers.Headers{
-		"content-length": fmt.Sprint(contentLen),
-		"connection":     "close",
-		"content-type":   "text/plain",
+	h := headers.Headers{}
+	h.Set("connection", "close")
+	h.Set("content-type", "text/plain")
+	if contentLen > 0 {
+		h.Set("content-length", fmt.Sprint(contentLen))
 	}
+	return h
 }
 
 func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
@@ -66,7 +68,7 @@ func (w *Writer) WriteHeaders(headers headers.Headers) error {
 		return fmt.Errorf("error: unexpected writerState %d when calling WriteHeaders", w.WriterState)
 	}
 	for key, val := range headers {
-		_, err := fmt.Fprintf(w.Writer, "%s: %s\n", key, val)
+		_, err := fmt.Fprintf(w.Writer, "%s: %s\r\n", key, val)
 		if err != nil {
 			return err
 		}
@@ -85,4 +87,22 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	}
 	n, err := w.Writer.Write(p)
 	return n, err
+}
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	if w.WriterState != WriterStateBody {
+		return 0, fmt.Errorf("error: unexpected writerState %d when calling WriteChunkedBody", w.WriterState)
+	}
+	n, err := fmt.Fprintf(w.Writer, "%X\r\n", len(p))
+	n1, err := fmt.Fprintf(w.Writer, "%s\r\n", p)
+	return n + n1, err
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	if w.WriterState != WriterStateBody {
+		return 0, fmt.Errorf("error: unexpected writerState %d when calling WriteChunkedBodyDone", w.WriterState)
+	}
+	n, err := w.Writer.Write([]byte("0\r\n"))
+	n1, err := w.Writer.Write([]byte("\r\n"))
+	return n + n1, err
 }

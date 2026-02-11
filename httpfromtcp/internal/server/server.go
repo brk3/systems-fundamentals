@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net"
 
 	"httpfromtcp/internal/request"
@@ -33,7 +34,7 @@ func (s *Server) listen() {
 		// Wait for a connection.
 		conn, err := s.listener.Accept()
 		if err != nil {
-			_ = fmt.Errorf("error accepting connection: %v", err)
+			log.Printf("error accepting connection: %v", err)
 		}
 		go s.handle(conn)
 	}
@@ -44,7 +45,7 @@ func (s *Server) handle(conn net.Conn) {
 
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		_ = fmt.Errorf("error reading request: %v", err)
+		log.Printf("error reading request: %v", err)
 	}
 
 	response := &response.Writer{
