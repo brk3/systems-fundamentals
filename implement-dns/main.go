@@ -1,7 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"implement-dns/internal/dns"
+)
 
 func main() {
-	fmt.Println("vim-go")
+	fmt.Printf("% x\n", dns.EncodeDNSName([]byte("google.com")))
 }
