@@ -23,6 +23,7 @@ const (
 	WriterStateStatusLine WriterState = iota
 	WriterStateHeaders
 	WriterStateBody
+	WriterStateTrailers
 )
 
 type Writer struct {
@@ -103,6 +104,31 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 		return 0, fmt.Errorf("error: unexpected writerState %d when calling WriteChunkedBodyDone", w.WriterState)
 	}
 	n, err := w.Writer.Write([]byte("0\r\n"))
-	n1, err := w.Writer.Write([]byte("\r\n"))
-	return n + n1, err
+	// NOTE(pbourke)
+	// if trailers are used, dont pass the final \r\n yet. otherwise curl can miss the trailers and
+	// will show something like:
+	// * Leftovers after chunking: 110 bytes
+	//
+	// given trailers are optional we should have a flag on this. for lab purpose just assume they're
+	// coming, so dont write final \r\n yet!
+	// n1, err := w.Writer.Write([]byte("\r\n"))
+	w.WriterState = WriterStateTrailers
+	return n, err
+}
+
+func (w *Writer) WriteTrailers(h headers.Headers) error {
+	if w.WriterState != WriterStateTrailers {
+		return fmt.Errorf("error: unexpected writerState %d when calling WriteTrailers", w.WriterState)
+	}
+	for key, val := range h {
+		_, err := fmt.Fprintf(w.Writer, "%s: %s\r\n", key, val)
+		if err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprint(w.Writer, "\r\n")
+	if err != nil {
+		return err
+	}
+	return nil
 }
