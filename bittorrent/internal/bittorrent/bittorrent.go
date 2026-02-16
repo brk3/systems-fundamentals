@@ -47,14 +47,18 @@ func (b bencodeTorrent) toTorrentFile() (TorrentFile, error) {
 	}
 	tf.PieceHashes = pieceHashes
 	h, err := b.Info.infoHash()
+	if err != nil {
+		return TorrentFile{}, err
+	}
 	tf.InfoHash = h
 	tf.Announce = b.Announce
 	tf.PieceLength = b.Info.PieceLength
 	tf.Length = b.Info.Length
 	tf.Name = b.Info.Name
-	return tf, err
+	return tf, nil
 }
 
+// infoHash uniquely identifies files when we talk to trackers and peers
 func (i bencodeInfo) infoHash() ([20]byte, error) {
 	buf := bytes.Buffer{}
 	err := bencode.Marshal(&buf, i)
@@ -64,7 +68,7 @@ func (i bencodeInfo) infoHash() ([20]byte, error) {
 	return sha1.Sum(buf.Bytes()), err
 }
 
-func (t bencodeTorrent) trackerURL(peerID string, port int) (string, error) {
+func (t bencodeTorrent) trackerURL(peerID [20]byte, port uint16) (string, error) {
 	base, err := url.Parse(t.Announce)
 	if err != nil {
 		return "", err
@@ -75,7 +79,7 @@ func (t bencodeTorrent) trackerURL(peerID string, port int) (string, error) {
 	}
 	params := url.Values{
 		"info_hash":  []string{string(infoHash[:])},
-		"peer_id":    []string{peerID},
+		"peer_id":    []string{string(peerID[:])},
 		"port":       []string{strconv.Itoa(int(port))},
 		"uploaded":   []string{"0"},
 		"downloaded": []string{"0"},
