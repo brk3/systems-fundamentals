@@ -1,19 +1,17 @@
-package main
+package bittorrent
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha1"
-	"fmt"
 	"net/url"
-	"os"
 	"strconv"
 
 	bencode "github.com/jackpal/bencode-go"
 )
 
-// Currently ignoring the 'TorrentFile' abstraction described in article
+const sha1Len = 20
 
+// serialisation structs - directly maps to bencode spec
 type bencodeInfo struct {
 	Length      int    `bencode:"length"`
 	Name        string `bencode:"name"`
@@ -28,6 +26,30 @@ type bencodeTorrent struct {
 	CreationDate int         `bencode:"creation date"`
 	Info         bencodeInfo `bencode:"info"`
 }
+
+// domain model - decouple ourselves from bencode format specifics
+type TorrentFile struct {
+	Announce    string
+	InfoHash    [sha1Len]byte
+	PieceHashes [][sha1Len]byte
+	PieceLength int
+	Length      int
+	Name        string
+}
+
+// func (b bencodeTorrent) toTorrentFile() (TorrentFile, error) {
+// 	tf := TorrentFile{}
+// 	pieceHashes := make([][sha1Len]byte, len(b.Info.Pieces)/sha1Len)
+// 	for i := 0; i < len(b.Info.Pieces); i++ {
+// 		copy(pieceHashes[i][:], b.Info.Pieces[i:i+sha1Len])
+// 	}
+// 	tf.Announce = b.Announce
+// 	// tf.InfoHash
+// 	// tf.PieceHashes =
+// 	tf.PieceLength = b.Info.PieceLength
+// 	tf.Length = b.Info.Length
+// 	tf.Name = b.Info.Name
+// }
 
 func (i bencodeInfo) infoHash() ([20]byte, error) {
 	var buf bytes.Buffer
@@ -58,35 +80,4 @@ func (t bencodeTorrent) trackerURL(peerID string, port int) (string, error) {
 	}
 	base.RawQuery = params.Encode()
 	return base.String(), nil
-}
-
-func main() {
-	f, err := os.Open("debian-11.5.0-amd64-netinst.iso.torrent")
-	if err != nil {
-		fmt.Println("error opening torrent file: ", err)
-		os.Exit(1)
-	}
-	defer f.Close()
-
-	r := bufio.NewReader(f)
-	torrent := bencodeTorrent{}
-	err = bencode.Unmarshal(r, &torrent)
-	if err != nil {
-		fmt.Println("error unmarshalling torrent file: ", err)
-		os.Exit(1)
-	}
-
-	infoHash, err := torrent.Info.infoHash()
-	if err != nil {
-		fmt.Println("error generating infoHash: ", err)
-		os.Exit(1)
-	}
-	fmt.Printf("infoHash: %x\n", infoHash)
-
-	trackerURL, err := torrent.trackerURL("paulstorrentclient!", 8080)
-	if err != nil {
-		fmt.Println("error generating trackerURL: ", err)
-		os.Exit(1)
-	}
-	fmt.Println("trackerURL: ", trackerURL)
 }
