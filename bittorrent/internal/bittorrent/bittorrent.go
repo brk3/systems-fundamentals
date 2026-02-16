@@ -9,7 +9,7 @@ import (
 	bencode "github.com/jackpal/bencode-go"
 )
 
-const sha1Len = 20
+const hashLen = 20 // sha1
 
 // serialisation structs - directly maps to bencode spec
 type bencodeInfo struct {
@@ -30,29 +30,33 @@ type bencodeTorrent struct {
 // domain model - decouple ourselves from bencode format specifics
 type TorrentFile struct {
 	Announce    string
-	InfoHash    [sha1Len]byte
-	PieceHashes [][sha1Len]byte
+	InfoHash    [hashLen]byte
+	PieceHashes [][hashLen]byte
 	PieceLength int
 	Length      int
 	Name        string
 }
 
-// func (b bencodeTorrent) toTorrentFile() (TorrentFile, error) {
-// 	tf := TorrentFile{}
-// 	pieceHashes := make([][sha1Len]byte, len(b.Info.Pieces)/sha1Len)
-// 	for i := 0; i < len(b.Info.Pieces); i++ {
-// 		copy(pieceHashes[i][:], b.Info.Pieces[i:i+sha1Len])
-// 	}
-// 	tf.Announce = b.Announce
-// 	// tf.InfoHash
-// 	// tf.PieceHashes =
-// 	tf.PieceLength = b.Info.PieceLength
-// 	tf.Length = b.Info.Length
-// 	tf.Name = b.Info.Name
-// }
+func (b bencodeTorrent) toTorrentFile() (TorrentFile, error) {
+	tf := TorrentFile{}
+	numPieces := len(b.Info.Pieces) / hashLen
+	pieceHashes := make([][hashLen]byte, numPieces)
+	for i := 0; i < numPieces; i++ {
+		start := i * hashLen
+		copy(pieceHashes[i][:], b.Info.Pieces[start:start+hashLen])
+	}
+	tf.PieceHashes = pieceHashes
+	h, err := b.Info.infoHash()
+	tf.InfoHash = h
+	tf.Announce = b.Announce
+	tf.PieceLength = b.Info.PieceLength
+	tf.Length = b.Info.Length
+	tf.Name = b.Info.Name
+	return tf, err
+}
 
 func (i bencodeInfo) infoHash() ([20]byte, error) {
-	var buf bytes.Buffer
+	buf := bytes.Buffer{}
 	err := bencode.Marshal(&buf, i)
 	if err != nil {
 		return [20]byte{}, err
