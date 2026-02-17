@@ -9,3 +9,11 @@ type TorrentFile struct {
 	Length      int
 	Name        string
 }
+
+type Torrent struct {
+}
+
+func (t *Torrent) Download() ([]byte, error) {
+	// TODO
+	return nil, nil
+}
