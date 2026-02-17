@@ -2,7 +2,6 @@ package bittorrent
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
