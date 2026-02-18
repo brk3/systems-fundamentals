@@ -1,15 +1,5 @@
 package bittorrent
 
-// domain model - decouple ourselves from bencode format specifics
-type TorrentFile struct {
-	Announce    string
-	InfoHash    [hashLen]byte
-	PieceHashes [][hashLen]byte
-	PieceLength int
-	Length      int
-	Name        string
-}
-
 type pieceWork struct {
 	index  int
 	hash   [20]byte
@@ -50,6 +40,18 @@ func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
 
 // TODO
 func (t *Torrent) startDownloadWorker(peer Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
+	for pw := range workQueue { // pw := <-workQueue
+		resQueue <- pieceResult{index: pw.index}
+	}
+	// open tcp conn with peer
+	// do handshake, receive bitfield
+	// take a piece of work from queue
+	// does peer have this piece
+	// if no, put back on queue
+	// if yes, try download
+	// download ok? check hash
+	// hash ok? send result to channel
+	// ...
 }
 
 func (t *Torrent) Download() {

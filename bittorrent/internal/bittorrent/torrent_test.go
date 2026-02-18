@@ -1,6 +1,9 @@
 package bittorrent
 
-import "testing"
+import (
+	"testing"
+	"net"
+)
 
 func TestCalculatePieceSize(t *testing.T) {
 	// last piece of even size
@@ -73,4 +76,15 @@ func TestCalculateBoundsForPiece(t *testing.T) {
 		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
 		want_start, want_end, have_start, have_end)
 	}
+}
+
+func TestDownload(t *testing.T) {
+	tf := TorrentFile{
+		PieceHashes: make([][20]byte, 5),
+		PieceLength: 2,
+		Length: 10,
+	}
+	to := NewTorrent(tf)
+	to.Peers = []Peer{ { IP: net.ParseIP("1.2.3.4"), Port: 6881, } }
+	to.Download()
 }

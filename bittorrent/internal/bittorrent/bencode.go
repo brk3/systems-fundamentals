@@ -3,7 +3,6 @@ package bittorrent
 import (
 	"bytes"
 	"crypto/sha1"
-	"fmt"
 	"net/url"
 	"strconv"
 
@@ -26,30 +25,6 @@ type bencodeTorrent struct {
 	CreatedBy    string      `bencode:"created by"`
 	CreationDate int         `bencode:"creation date"`
 	Info         bencodeInfo `bencode:"info"`
-}
-
-func (b bencodeTorrent) toTorrentFile() (TorrentFile, error) {
-	if len(b.Info.Pieces)%hashLen != 0 {
-		return TorrentFile{}, fmt.Errorf("received malformed pieces, len %d", len(b.Info.Pieces))
-	}
-	numPieces := len(b.Info.Pieces) / hashLen
-	pieceHashes := make([][hashLen]byte, numPieces)
-	for i := 0; i < numPieces; i++ {
-		start := i * hashLen
-		copy(pieceHashes[i][:], b.Info.Pieces[start:start+hashLen])
-	}
-	tf := TorrentFile{}
-	tf.PieceHashes = pieceHashes
-	h, err := b.Info.infoHash()
-	if err != nil {
-		return TorrentFile{}, err
-	}
-	tf.InfoHash = h
-	tf.Announce = b.Announce
-	tf.PieceLength = b.Info.PieceLength
-	tf.Length = b.Info.Length
-	tf.Name = b.Info.Name
-	return tf, nil
 }
 
 // infoHash uniquely identifies files when we talk to trackers and peers

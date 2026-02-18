@@ -4,6 +4,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"io"
+	"time"
+	"strconv"
 )
 
 // Peer encodes connection information for a peer
@@ -30,3 +33,17 @@ func Unmarshal(peersBin []byte) ([]Peer, error) {
 	}
 	return peers, nil
 }
+
+func (p *Peer) Connect() (io.Reader, error) {
+	addr := net.JoinHostPort(p.IP.String(), strconv.Itoa(int(p.Port)))
+	conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+// TODO
+// func (p *Peer) Handshake(h Handshake) error {
+
+// }
