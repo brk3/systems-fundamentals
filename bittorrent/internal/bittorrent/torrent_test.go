@@ -42,3 +42,35 @@ func TestCalculatePieceSize(t *testing.T) {
 		t.Errorf("expected piece size of '%d', got '%d'", want, have)
 	}
 }
+
+func TestCalculateBoundsForPiece(t *testing.T) {
+	// first piece
+	tf := TorrentFile{
+		PieceHashes: make([][20]byte, 4),
+		PieceLength: 256,
+		Length: 1000,
+	}
+	to := NewTorrent(tf)
+	want_start, want_end := 0, 256
+	have_start, have_end := to.calculateBoundsForPiece(0)
+	if have_start != want_start || have_end != want_end {
+		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
+		want_start, want_end, have_start, have_end)
+	}
+
+	// middle piece
+	want_start, want_end = 256, 512
+	have_start, have_end = to.calculateBoundsForPiece(1)
+	if have_start != want_start || have_end != want_end {
+		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
+		want_start, want_end, have_start, have_end)
+	}
+
+	// last piece
+	want_start, want_end = 768, 1000
+	have_start, have_end = to.calculateBoundsForPiece(3)
+	if have_start != want_start || have_end != want_end {
+		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
+		want_start, want_end, have_start, have_end)
+	}
+}

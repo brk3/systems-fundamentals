@@ -43,9 +43,9 @@ func (t *Torrent) calculatePieceSize(index int) int {
 	return t.File.PieceLength
 }
 
-// TODO
 func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
-	return 0, 0
+	prevEnd := t.File.PieceLength * index
+	return prevEnd, prevEnd + t.calculatePieceSize(index)
 }
 
 // TODO
