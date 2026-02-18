@@ -3,8 +3,6 @@ package bittorrent
 import (
 	"bytes"
 	"crypto/sha1"
-	"net/url"
-	"strconv"
 
 	bencode "github.com/jackpal/bencode-go"
 )
@@ -35,26 +33,4 @@ func (i bencodeInfo) infoHash() ([20]byte, error) {
 		return [20]byte{}, err
 	}
 	return sha1.Sum(buf.Bytes()), err
-}
-
-func (t bencodeTorrent) trackerURL(peerID [20]byte, port uint16) (string, error) {
-	base, err := url.Parse(t.Announce)
-	if err != nil {
-		return "", err
-	}
-	infoHash, err := t.Info.infoHash()
-	if err != nil {
-		return "", err
-	}
-	params := url.Values{
-		"info_hash":  []string{string(infoHash[:])}, // the file we’re trying to download
-		"peer_id":    []string{string(peerID[:])},   // 20 byte name to identify ourselves to trackers and peers
-		"port":       []string{strconv.Itoa(int(port))},
-		"uploaded":   []string{"0"},
-		"downloaded": []string{"0"},
-		"compact":    []string{"1"},
-		"left":       []string{strconv.Itoa(t.Info.Length)},
-	}
-	base.RawQuery = params.Encode()
-	return base.String(), nil
 }
