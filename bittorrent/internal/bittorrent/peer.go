@@ -65,6 +65,10 @@ func (p *Peer) Handshake(rw io.ReadWriter, h Handshake) (Handshake, error) {
 	}
 	hr := Handshake{}
 	hr.Deserialize(res)
+	if hr.InfoHash != h.InfoHash {
+		return Handshake{}, fmt.Errorf("%s: infohash from peer (%s) doesn't match what we asked for (%s)\n",
+			p.String(), hr.InfoHash, h.InfoHash)
+	}
 	return hr, nil
 }
 
