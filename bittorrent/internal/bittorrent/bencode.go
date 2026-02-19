@@ -26,11 +26,11 @@ type bencodeTorrent struct {
 }
 
 // infoHash uniquely identifies files when we talk to trackers and peers
-func (i bencodeInfo) infoHash() ([20]byte, error) {
+func (i bencodeInfo) infoHash() ([hashLen]byte, error) {
 	buf := bytes.Buffer{}
 	err := bencode.Marshal(&buf, i)
 	if err != nil {
-		return [20]byte{}, err
+		return [hashLen]byte{}, err
 	}
 	return sha1.Sum(buf.Bytes()), err
 }

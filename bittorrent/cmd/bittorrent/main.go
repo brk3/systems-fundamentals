@@ -7,10 +7,6 @@ import (
 	"go-bt-learning.brk3.github.io/internal/bittorrent"
 )
 
-const (
-	peerID = "paulsbittorentclient" // 20 chars
-)
-
 func main() {
 	f, err := os.Open("debian-11.5.0-amd64-netinst.iso.torrent")
 	if err != nil {
@@ -25,10 +21,11 @@ func main() {
 		os.Exit(1)
 	}
 	t := bittorrent.NewTorrent(tf)
-	err = t.Announce(peerID, 6881)
+	err = t.Announce(bittorrent.PeerID, 6881)
 	if err != nil {
 		fmt.Printf("error announcing ourselves to tracker: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("peers: %d", t.Peers)
+	fmt.Printf("received %d peers from tracker\n", len(t.Peers))
+	t.Download()
 }

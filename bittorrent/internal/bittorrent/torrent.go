@@ -2,11 +2,14 @@ package bittorrent
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	bencode "github.com/jackpal/bencode-go"
 )
+
+const PeerID = "paulsbittorentclient" // 20 chars
 
 type Torrent struct {
 	File     TorrentFile
@@ -88,26 +91,53 @@ func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
 	return prevEnd, prevEnd + t.calculatePieceSize(index)
 }
 
-// TODO
-func (t *Torrent) startDownloadWorker(peer Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
-	for pw := range workQueue { // pw := <-workQueue
-		resQueue <- pieceResult{index: pw.index}
+func (t *Torrent) waitForBitfield(r io.Reader) error {
+	for {
+		m, err := ReadMessage(r)
+		if err != nil {
+			return err
+		}
+		if m.ID == MsgBitfield {
+			t.Bitfield = m.Serialize()
+			return nil
+		}
+		fmt.Printf("received message ID %d while waiting for bitfield", m.ID)
 	}
-	// open tcp conn with peer
-	// do handshake, receive bitfield
-	// take a piece of work from queue
-	// does peer have this piece
-	// if no, put back on queue
-	// if yes, try download
-	// download ok? check hash
-	// hash ok? send result to channel
-	// ...
+}
+
+func (t *Torrent) startDownloadWorker(peer Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
+	conn, err := peer.Connect()
+	if err != nil {
+		fmt.Printf("%s: error connecting to peer: %v\n", peer.String(), err)
+		return
+	}
+	fmt.Printf("%s: connected\n", peer.String())
+	defer conn.Close()
+	h := NewHandshake(t.File.InfoHash)
+	rh, err := peer.Handshake(conn, h)
+	if err != nil {
+		fmt.Printf("%s: error handshaking with peer: %v\n", peer.String(), err)
+		return
+	}
+	if rh.InfoHash != t.File.InfoHash {
+		fmt.Printf("%s: infohash from peer (%s) doesn't match what we asked for (%s)\n",
+			peer.String(), rh.InfoHash, t.File.InfoHash)
+		return
+	}
+	err = t.waitForBitfield(conn)
+	if err != nil {
+		fmt.Printf("%s: error reading bitfield from peer: %v\n", peer.String(), err)
+		return
+	}
+	// sendinterested
+	for pw := range workQueue {
+		resQueue <- pieceResult{index: pw.index} // simulate results
+	}
 }
 
 func (t *Torrent) Download() {
 	workQueue := make(chan pieceWork, len(t.File.PieceHashes)) // buffered channel
 	resQueue := make(chan pieceResult)
-	// TODO: should we check bitfield here?
 	for index, hash := range t.File.PieceHashes {
 		length := t.calculatePieceSize(index)
 		workQueue <- pieceWork{index, hash, length}
@@ -120,7 +150,11 @@ func (t *Torrent) Download() {
 	donePieces := 0
 	for donePieces < len(t.File.PieceHashes) {
 		res := <-resQueue
-		// TODO: check for error on pieceResult
+		if res.err != nil {
+			// TODO: handle worker failure
+			fmt.Printf("worker error downloading piece %d: %v\n", res.index, res.err)
+			continue
+		}
 		begin, end := t.calculateBoundsForPiece(res.index)
 		copy(buf[begin:end], res.buf)
 		donePieces++

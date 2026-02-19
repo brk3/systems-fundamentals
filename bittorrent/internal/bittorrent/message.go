@@ -41,7 +41,7 @@ func (m *Message) Serialize() []byte {
 }
 
 // Read parses a message from a stream. Returns `nil` on keep-alive message
-func Read(r io.Reader) (*Message, error) {
+func ReadMessage(r io.Reader) (*Message, error) {
 	buf := make([]byte, 4)
 	_, err := io.ReadFull(r, buf)
 	if err != nil {
