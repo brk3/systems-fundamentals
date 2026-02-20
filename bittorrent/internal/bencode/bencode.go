@@ -1,4 +1,4 @@
-package bittorrent
+package bencode
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ type bencodeInfo struct {
 	Pieces      string `bencode:"pieces"`
 }
 
-type bencodeTorrent struct {
+type BencodeTorrent struct {
 	Announce     string      `bencode:"announce"`
 	Comment      string      `bencode:"comment"`
 	CreatedBy    string      `bencode:"created by"`
@@ -26,7 +26,7 @@ type bencodeTorrent struct {
 }
 
 // infoHash uniquely identifies files when we talk to trackers and peers
-func (i bencodeInfo) infoHash() ([hashLen]byte, error) {
+func (i bencodeInfo) InfoHash() ([hashLen]byte, error) {
 	buf := bytes.Buffer{}
 	err := bencode.Marshal(&buf, i)
 	if err != nil {

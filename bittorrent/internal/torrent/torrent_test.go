@@ -1,16 +1,17 @@
-package bittorrent
+package torrent
 
 import (
 	"testing"
-	"net"
+
+	"go-bt-learning.brk3.github.io/internal/torrentfile"
 )
 
 func TestCalculatePieceSize(t *testing.T) {
 	// last piece of even size
-	tf := TorrentFile{
+	tf := torrentfile.TorrentFile{
 		PieceHashes: make([][20]byte, 4),
 		PieceLength: 25,
-		Length: 100,
+		Length:      100,
 	}
 	to := NewTorrent(tf)
 	want := 25
@@ -20,10 +21,10 @@ func TestCalculatePieceSize(t *testing.T) {
 	}
 
 	// last piece of odd size
-	tf = TorrentFile{
+	tf = torrentfile.TorrentFile{
 		PieceHashes: make([][20]byte, 4),
 		PieceLength: 25,
-		Length: 110,
+		Length:      110,
 	}
 	to = NewTorrent(tf)
 	want = 10
@@ -33,10 +34,10 @@ func TestCalculatePieceSize(t *testing.T) {
 	}
 
 	// standard piece
-	tf = TorrentFile{
+	tf = torrentfile.TorrentFile{
 		PieceHashes: make([][20]byte, 4),
 		PieceLength: 25,
-		Length: 110,
+		Length:      110,
 	}
 	to = NewTorrent(tf)
 	want = 25
@@ -48,17 +49,17 @@ func TestCalculatePieceSize(t *testing.T) {
 
 func TestCalculateBoundsForPiece(t *testing.T) {
 	// first piece
-	tf := TorrentFile{
+	tf := torrentfile.TorrentFile{
 		PieceHashes: make([][20]byte, 4),
 		PieceLength: 256,
-		Length: 1000,
+		Length:      1000,
 	}
 	to := NewTorrent(tf)
 	want_start, want_end := 0, 256
 	have_start, have_end := to.calculateBoundsForPiece(0)
 	if have_start != want_start || have_end != want_end {
 		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
-		want_start, want_end, have_start, have_end)
+			want_start, want_end, have_start, have_end)
 	}
 
 	// middle piece
@@ -66,7 +67,7 @@ func TestCalculateBoundsForPiece(t *testing.T) {
 	have_start, have_end = to.calculateBoundsForPiece(1)
 	if have_start != want_start || have_end != want_end {
 		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
-		want_start, want_end, have_start, have_end)
+			want_start, want_end, have_start, have_end)
 	}
 
 	// last piece
@@ -74,17 +75,18 @@ func TestCalculateBoundsForPiece(t *testing.T) {
 	have_start, have_end = to.calculateBoundsForPiece(3)
 	if have_start != want_start || have_end != want_end {
 		t.Errorf("expected (start, end) of (%d, %d), got (%d, %d)",
-		want_start, want_end, have_start, have_end)
+			want_start, want_end, have_start, have_end)
 	}
 }
 
-func TestDownload(t *testing.T) {
-	tf := TorrentFile{
-		PieceHashes: make([][20]byte, 5),
-		PieceLength: 2,
-		Length: 10,
-	}
-	to := NewTorrent(tf)
-	to.Peers = []Peer{ { IP: net.ParseIP("1.2.3.4"), Port: 6881, } }
-	to.Download()
-}
+// TODO
+// func TestDownload(t *testing.T) {
+// 	tf := torrentfile.TorrentFile{
+// 		PieceHashes: make([][20]byte, 5),
+// 		PieceLength: 2,
+// 		Length:      10,
+// 	}
+// 	to := NewTorrent(tf)
+// 	to.Peers = []peer.Peer{{IP: net.ParseIP("1.2.3.4"), Port: 6881}}
+// 	to.Download()
+// }

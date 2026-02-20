@@ -1,38 +1,39 @@
-package bittorrent
+package torrentfile
 
 import (
 	"io"
 	"net/url"
 	"strconv"
 
-	bencode "github.com/jackpal/bencode-go"
+	be "github.com/jackpal/bencode-go"
+	"go-bt-learning.brk3.github.io/internal/bencode"
 )
 
 // domain model - decouple ourselves from bencode format specifics
 type TorrentFile struct {
 	Announce    string
-	InfoHash    [hashLen]byte
-	PieceHashes [][hashLen]byte
+	InfoHash    [20]byte
+	PieceHashes [][20]byte
 	PieceLength int
 	Length      int
 	Name        string
 }
 
 func NewTorrentFile(r io.Reader) (TorrentFile, error) {
-	b := bencodeTorrent{}
-	err := bencode.Unmarshal(r, &b)
+	b := bencode.BencodeTorrent{}
+	err := be.Unmarshal(r, &b)
 	if err != nil {
 		return TorrentFile{}, err
 	}
-	numPieces := len(b.Info.Pieces) / hashLen
-	pieceHashes := make([][hashLen]byte, numPieces)
+	numPieces := len(b.Info.Pieces) / 20
+	pieceHashes := make([][20]byte, numPieces)
 	for i := 0; i < numPieces; i++ {
-		start := i * hashLen
-		copy(pieceHashes[i][:], b.Info.Pieces[start:start+hashLen])
+		start := i * 20
+		copy(pieceHashes[i][:], b.Info.Pieces[start:start+20])
 	}
 	tf := TorrentFile{}
 	tf.PieceHashes = pieceHashes
-	h, err := b.Info.infoHash()
+	h, err := b.Info.InfoHash()
 	if err != nil {
 		return TorrentFile{}, err
 	}

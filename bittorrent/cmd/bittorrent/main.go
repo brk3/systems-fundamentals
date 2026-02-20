@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"go-bt-learning.brk3.github.io/internal/bittorrent"
+	"go-bt-learning.brk3.github.io/internal/client"
+	"go-bt-learning.brk3.github.io/internal/torrent"
+	"go-bt-learning.brk3.github.io/internal/torrentfile"
 )
 
 func main() {
@@ -14,14 +16,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	// TODO: add state machine?
-	tf, err := bittorrent.NewTorrentFile(f)
+	tf, err := torrentfile.NewTorrentFile(f)
 	if err != nil {
 		fmt.Printf("error loading torrent file: %v\n", err)
 		os.Exit(1)
 	}
-	t := bittorrent.NewTorrent(tf)
-	err = t.Announce(bittorrent.PeerID, 6881)
+	t := torrent.NewTorrent(tf)
+	err = t.Announce(client.PeerID, 6881)
 	if err != nil {
 		fmt.Printf("error announcing ourselves to tracker: %v\n", err)
 		os.Exit(1)

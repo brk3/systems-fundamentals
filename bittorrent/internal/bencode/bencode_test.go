@@ -1,4 +1,4 @@
-package bittorrent
+package bencode
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ func TestToTorrentFile(t *testing.T) {
 	defer f.Close()
 	r := bufio.NewReader(f)
 
-	b := bencodeTorrent{}
+	b := BencodeTorrent{}
 	err = bencode.Unmarshal(r, &b)
 	if err != nil {
 		t.Errorf("error unmarshalling torrent file: %v", err)

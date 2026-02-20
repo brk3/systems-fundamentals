@@ -1,4 +1,4 @@
-package bittorrent
+package message
 
 import (
 	"encoding/binary"

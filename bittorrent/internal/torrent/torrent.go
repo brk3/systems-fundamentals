@@ -1,4 +1,4 @@
-package bittorrent
+package torrent
 
 import (
 	"fmt"
@@ -6,6 +6,11 @@ import (
 	"time"
 
 	bencode "github.com/jackpal/bencode-go"
+	"go-bt-learning.brk3.github.io/internal/bitfield"
+	"go-bt-learning.brk3.github.io/internal/client"
+	"go-bt-learning.brk3.github.io/internal/message"
+	"go-bt-learning.brk3.github.io/internal/peer"
+	"go-bt-learning.brk3.github.io/internal/torrentfile"
 )
 
 const (
@@ -14,15 +19,12 @@ const (
 
 	// MaxBacklog is the number of unfulfilled requests a client can have in its pipeline
 	MaxBacklog = 5
-
-	// PeerID is a 20 char identifier for our client
-	PeerID = "paulsbittorentclient"
 )
 
 type Torrent struct {
-	File     TorrentFile
-	Peers    []Peer
-	Bitfield Bitfield
+	File     torrentfile.TorrentFile
+	Peers    []peer.Peer
+	Bitfield bitfield.Bitfield
 }
 
 type pieceWork struct {
@@ -39,7 +41,7 @@ type pieceResult struct {
 
 type pieceProgress struct {
 	index      int
-	client     *Client
+	client     *client.Client
 	buf        []byte
 	downloaded int
 	requested  int
@@ -52,10 +54,10 @@ type trackerResponse struct {
 	Peers         string `bencode:"peers"`
 }
 
-func NewTorrent(t TorrentFile) *Torrent {
+func NewTorrent(t torrentfile.TorrentFile) *Torrent {
 	return &Torrent{
 		File:     t,
-		Bitfield: make(Bitfield, (len(t.PieceHashes)+7)/8), // round up trick to ensure enough bytes
+		Bitfield: make(bitfield.Bitfield, (len(t.PieceHashes)+7)/8), // round up trick to ensure enough bytes
 	}
 }
 
@@ -87,7 +89,7 @@ func (t *Torrent) Announce(peerID string, port uint16) error {
 	if tr.FailureReason != "" {
 		return fmt.Errorf("tracker failed: %s", tr.FailureReason)
 	}
-	peers, err := Unmarshal([]byte(tr.Peers))
+	peers, err := peer.Unmarshal([]byte(tr.Peers))
 	if err != nil {
 		return fmt.Errorf("error parsing peers: %w", err)
 	}
@@ -108,13 +110,14 @@ func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
 	return prevEnd, prevEnd + t.calculatePieceSize(index)
 }
 
-func (t *Torrent) startDownloadWorker(peer Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
-	c, err := NewClient(peer, t.File.InfoHash)
+func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
+	c, err := client.NewClient(peer, t.File.InfoHash)
 	if err != nil {
-		fmt.Printf("%s: error creating client for peer: %v", err)
+		fmt.Printf("%s: error creating client for peer: %v", peer.String(), err)
+		return
 	}
 	defer c.Conn.Close()
-	c.Conn.Write((&Message{ID: MsgInterested}).Serialize())
+	c.Conn.Write((&message.Message{ID: message.MsgInterested}).Serialize())
 	for {
 		if !c.Choked && c.Bitfield != nil {
 			pw, ok := <-workQueue
@@ -143,9 +146,8 @@ func (t *Torrent) startDownloadWorker(peer Peer, workQueue chan pieceWork, resQu
 	}
 }
 
-func downloadPiece(c *Client, pw pieceWork) ([]byte, error) {
+func downloadPiece(c *client.Client, pw pieceWork) ([]byte, error) {
 	state := pieceProgress{
-		index:  pw.index,
 		client: c,
 		buf:    make([]byte, pw.length),
 	}
