@@ -144,11 +144,12 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 			// 		continue
 			// }
 			resQueue <- pieceResult{index: pw.index, buf: buf}
-		}
-		_, err := c.HandleMessage()
-		if err != nil {
-			fmt.Printf("%s: error reading message from peer: %v\n", peer.String(), err)
-			return
+		} else {
+			_, err := c.HandleMessage()
+			if err != nil {
+				fmt.Printf("%s: error reading message from peer: %v\n", peer.String(), err)
+				return
+			}
 		}
 	}
 }
