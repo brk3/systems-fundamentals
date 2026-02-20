@@ -136,6 +136,13 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 				workQueue <- pw
 				continue
 			}
+			// TODO
+			// err = checkIntegrity(pw, buf)
+			// if err != nil {
+			// 		log.Printf("Piece #%d failed integrity check\n", pw.index)
+			// 		workQueue <- pw // Put piece back on the queue
+			// 		continue
+			// }
 			resQueue <- pieceResult{index: pw.index, buf: buf}
 		}
 		_, err := c.HandleMessage()
