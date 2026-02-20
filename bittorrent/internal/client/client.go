@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -12,11 +13,11 @@ import (
 	"go-bt-learning.brk3.github.io/internal/peer"
 )
 
-// PeerID is a 20 char identifier for our client
+// PeerID is a 20 byte identifier for our client
 const PeerID = "paulsbittorentclient"
 
 type Client struct {
-	Conn     io.ReadWriteCloser
+	Conn     net.Conn
 	Choked   bool
 	Bitfield bitfield.Bitfield
 	Peer     peer.Peer
@@ -46,36 +47,49 @@ func NewClient(peer peer.Peer, infoHash [20]byte) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) HandleMessage() error {
-	msg, err := message.ReadMessage(client.Conn)
+// HandleMessage updates the Client state based on the message received. It returns the message for
+// optional further processing.
+func (c *Client) HandleMessage() (*message.Message, error) {
+	msg, err := message.ReadMessage(c.Conn)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if msg == nil {
+		fmt.Printf("%s: received keepalive message\n", c.Peer.String())
+		return nil, nil
 	}
 	switch msg.ID {
 	case message.MsgBitfield:
-		client.Bitfield = msg.Payload
+		fmt.Printf("%s: received bitfield message\n", c.Peer.String())
+		c.Bitfield = msg.Payload
 	case message.MsgUnchoke:
-		client.Choked = false
+		fmt.Printf("%s: received unchoke message\n", c.Peer.String())
+		c.Choked = false
 	case message.MsgChoke:
-		client.Choked = true
+		fmt.Printf("%s: received choke message\n", c.Peer.String())
+		c.Choked = true
 	case message.MsgHave:
-		// index, err := message.ParseHave(msg)
-		// if err != nil {
-		// 	return err
-		// }
-		// client.Bitfield.SetPiece(index)
-	case message.MsgPiece:
-		// TODO
-		// n, err := message.ParsePiece(state.index, state.buf, msg)
-		// state.downloaded += n
-		// state.backlog--
+		fmt.Printf("%s: received have message\n", c.Peer.String())
+		index := binary.BigEndian.Uint32(msg.Payload)
+		c.Bitfield.SetPiece(int(index))
+		// case message.MsgPiece:
+		// 	fmt.Printf("%s: received piece message\n", c.Peer.String())
 	}
-	return nil
+	return msg, nil
 }
 
-// TODO
-func (client *Client) SendRequest(index, begin, length int) error {
-	return nil
+// request: <len=0013><id=6><index><begin><length>
+func (c *Client) SendRequest(index, begin, length int) error {
+	p := make([]byte, 12)
+	binary.BigEndian.PutUint32(p[0:4], uint32(index))
+	binary.BigEndian.PutUint32(p[4:8], uint32(begin))
+	binary.BigEndian.PutUint32(p[8:12], uint32(length))
+	m := message.Message{
+		ID:      message.MsgRequest,
+		Payload: p,
+	}
+	_, err := c.Conn.Write(m.Serialize())
+	return err
 }
 
 func (c *Client) Connect() (io.ReadWriteCloser, error) {

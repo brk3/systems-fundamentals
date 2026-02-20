@@ -28,5 +28,15 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("received %d peers from tracker\n", len(t.Peers))
-	t.Download()
+	data := t.Download()
+	f, err = os.Open(t.File.Name)
+	if err != nil {
+		fmt.Printf("error opening output file: %v\n", err)
+		os.Exit(1)
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		fmt.Printf("error writing output file: %v\n", err)
+		os.Exit(1)
+	}
 }

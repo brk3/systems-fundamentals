@@ -58,3 +58,11 @@ func ReadMessage(r io.Reader) (*Message, error) {
 	}
 	return &Message{ID: messageID(buf[0]), Payload: buf[1:]}, nil
 }
+
+// piece: <len=0009+X><id=7><index><begin><block>, where X is the length of the block
+func ParsePiece(buf []byte, m *Message) int {
+	begin := binary.BigEndian.Uint32(m.Payload[4:8])
+	block := m.Payload[8:]
+	n := copy(buf[begin:], block)
+	return n
+}

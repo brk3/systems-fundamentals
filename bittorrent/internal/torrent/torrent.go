@@ -113,7 +113,7 @@ func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
 func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
 	c, err := client.NewClient(peer, t.File.InfoHash)
 	if err != nil {
-		fmt.Printf("%s: error creating client for peer: %v", peer.String(), err)
+		fmt.Printf("%s: error creating client for peer: %v\n", peer.String(), err)
 		return
 	}
 	defer c.Conn.Close()
@@ -138,7 +138,7 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 			}
 			resQueue <- pieceResult{index: pw.index, buf: buf}
 		}
-		err := c.HandleMessage()
+		_, err := c.HandleMessage()
 		if err != nil {
 			fmt.Printf("%s: error reading message from peer: %v\n", peer.String(), err)
 			return
@@ -147,48 +147,49 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 }
 
 func downloadPiece(c *client.Client, pw pieceWork) ([]byte, error) {
-	state := pieceProgress{
+	piece := pieceProgress{
 		client: c,
 		buf:    make([]byte, pw.length),
 	}
-
-	// TODO
 	// Setting a deadline helps get unresponsive peers unstuck.
 	// 30 seconds is more than enough time to download a 262 KB piece
-	// c.Conn.SetDeadline(time.Now().Add(30 * time.Second))
-	// defer c.Conn.SetDeadline(time.Time{}) // Disable the deadline
-
-	for state.downloaded < pw.length {
+	c.Conn.SetDeadline(time.Now().Add(30 * time.Second))
+	defer c.Conn.SetDeadline(time.Time{}) // Disable the deadline
+	for piece.downloaded < pw.length {
 		// If unchoked, send requests until we have enough unfulfilled requests
-		if !state.client.Choked {
-			for state.backlog < MaxBacklog && state.requested < pw.length {
+		if !piece.client.Choked {
+			for piece.backlog < MaxBacklog && piece.requested < pw.length {
 				blockSize := MaxBlockSize
 				// Last block might be shorter than the typical block
-				if pw.length-state.requested < blockSize {
-					blockSize = pw.length - state.requested
+				if pw.length-piece.requested < blockSize {
+					blockSize = pw.length - piece.requested
 				}
-
-				err := c.SendRequest(pw.index, state.requested, blockSize)
+				err := c.SendRequest(pw.index, piece.requested, blockSize)
 				if err != nil {
 					return nil, err
 				}
-				state.backlog++
-				state.requested += blockSize
+				piece.backlog++
+				piece.requested += blockSize
 			}
 		}
-
-		err := state.client.HandleMessage()
+		msg, err := piece.client.HandleMessage()
 		if err != nil {
 			return nil, err
 		}
+		if msg != nil && msg.ID == message.MsgPiece {
+			n := message.ParsePiece(piece.buf, msg)
+			piece.downloaded += n
+			piece.backlog--
+		}
 	}
-
-	return state.buf, nil
+	fmt.Printf("%s: successfully downloaded piece %d, size %d\n", c.Peer.String(), pw.index, len(piece.buf))
+	return piece.buf, nil
 }
 
-func (t *Torrent) Download() {
+func (t *Torrent) Download() []byte {
 	workQueue := make(chan pieceWork, len(t.File.PieceHashes)) // buffered channel
 	resQueue := make(chan pieceResult)
+	fmt.Printf("we have %d pieces to fetch\n", len(t.File.PieceHashes))
 	for index, hash := range t.File.PieceHashes {
 		length := t.calculatePieceSize(index)
 		workQueue <- pieceWork{index, hash, length}
@@ -210,4 +211,5 @@ func (t *Torrent) Download() {
 		donePieces++
 	}
 	close(workQueue)
+	return buf
 }
