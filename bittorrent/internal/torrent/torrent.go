@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"net/http"
 	"time"
@@ -136,13 +137,12 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 				workQueue <- pw
 				continue
 			}
-			// TODO
-			// err = checkIntegrity(pw, buf)
-			// if err != nil {
-			// 		log.Printf("Piece #%d failed integrity check\n", pw.index)
-			// 		workQueue <- pw // Put piece back on the queue
-			// 		continue
-			// }
+			err = checkIntegrity(pw, buf)
+			if err != nil {
+				fmt.Printf("%s: piece #%d failed integrity check, requeueing\n", peer.String(), pw.index)
+				workQueue <- pw
+				continue
+			}
 			resQueue <- pieceResult{index: pw.index, buf: buf}
 		} else {
 			_, err := c.HandleMessage()
@@ -152,6 +152,13 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, 
 			}
 		}
 	}
+}
+
+func checkIntegrity(pw pieceWork, buf []byte) error {
+	if s := sha1.Sum(buf); s != pw.hash {
+		return fmt.Errorf("received piece hash (%s) doesn't match expected (%s)\n", s, pw.hash)
+	}
+	return nil
 }
 
 func downloadPiece(c *client.Client, pw pieceWork) ([]byte, error) {
