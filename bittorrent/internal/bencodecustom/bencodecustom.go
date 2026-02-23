@@ -2,6 +2,7 @@ package bencodecustom
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strconv"
 )
@@ -21,13 +22,16 @@ func Parse(b *bufio.Reader) (any, error) {
 	}
 	switch t[0] {
 	case 'i':
-		s, err := parseInt(b)
-		return s, err
+		i, err := parseInt(b)
+		return i, err
 	case 'l':
-		s, err := parseList(b)
-		return s, err
+		l, err := parseList(b)
+		return l, err
+	case 'd':
+		d, err := parseDict(b)
+		return d, err
 	default:
-		return "not implemented", nil
+		return nil, fmt.Errorf("unknown type found in parse: %v", t[0])
 	}
 }
 
@@ -43,6 +47,35 @@ func parseList(b *bufio.Reader) ([]any, error) {
 			return nil, err
 		}
 		res = append(res, item)
+		t, err = b.Peek(1)
+		if err != nil {
+			return nil, err
+		}
+	}
+	b.ReadByte() // discard final 'e'
+	return res, nil
+}
+
+func parseDict(b *bufio.Reader) (map[string]any, error) {
+	t, err := b.Peek(1)
+	if err != nil {
+		return nil, err
+	}
+	res := map[string]any{}
+	for t[0] != 'e' {
+		key, err := parseString(b)
+		if err != nil {
+			return nil, err
+		}
+		val, err := Parse(b)
+		if err != nil {
+			return nil, err
+		}
+		_, exists := res[key]
+		if exists {
+			return nil, fmt.Errorf("dupe key '%s' found in dict", key)
+		}
+		res[key] = val
 		t, err = b.Peek(1)
 		if err != nil {
 			return nil, err
