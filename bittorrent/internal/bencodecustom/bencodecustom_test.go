@@ -10,7 +10,9 @@ import (
 func TestParseInt(t *testing.T) {
 	want := 52
 	s := strings.NewReader(fmt.Sprintf("i%de", want))
-	have, err := parseInt(bufio.NewReader(s))
+	r := bufio.NewReader(s)
+	r.ReadByte() // simulate Parse dropping first byte
+	have, err := parseInt(r)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -57,7 +59,7 @@ func TestParseString(t *testing.T) {
 func TestParseList(t *testing.T) {
 	// two strings
 	r := strings.NewReader("l4:spam4:eggse")
-	r.ReadByte() // drop leading 'l' to avoid Parse doubling up on itself
+	r.ReadByte() // simulate Parse dropping first byte
 	l, err := parseList(bufio.NewReader(r))
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
@@ -74,7 +76,7 @@ func TestParseList(t *testing.T) {
 
 	// mix of string and int
 	r = strings.NewReader("l4:spami1e4:eggse")
-	r.ReadByte() // drop leading 'l' to avoid Parse doubling up on itself
+	r.ReadByte() // simulate Parse dropping first byte
 	l, err = parseList(bufio.NewReader(r))
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
@@ -95,7 +97,7 @@ func TestParseList(t *testing.T) {
 
 func TestParseDicct(t *testing.T) {
 	r := strings.NewReader("d3:cow3:moo4:spam4:eggse")
-	r.ReadByte() // drop leading 'd' to avoid Parse doubling up on itself
+	r.ReadByte() // simulate Parse dropping first byte
 	d, err := parseDict(bufio.NewReader(r))
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
