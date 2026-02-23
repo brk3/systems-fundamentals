@@ -108,7 +108,7 @@ func (t *TorrentFile) BuildTrackerURL(peerID string, port uint16) (string, error
 	return base.String(), nil
 }
 
-// infoHash uniquely identifies files when we talk to trackers and peers
+// InfoHash uniquely identifies files when we talk to trackers and peers
 func (i bencodeInfo) InfoHash() ([20]byte, error) {
 	buf := bytes.Buffer{}
 	err := jackpal.Marshal(&buf, i)
