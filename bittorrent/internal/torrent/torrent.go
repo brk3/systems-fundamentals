@@ -1,12 +1,14 @@
 package torrent
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
-	bencode "github.com/jackpal/bencode-go"
+	"go-bt-learning.brk3.github.io/internal/bencodecustom"
 	"go-bt-learning.brk3.github.io/internal/bitfield"
 	"go-bt-learning.brk3.github.io/internal/client"
 	"go-bt-learning.brk3.github.io/internal/message"
@@ -82,8 +84,7 @@ func (t *Torrent) Announce(peerID string, port uint16) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("tracker returned non-200 status: %d", res.StatusCode)
 	}
-	var tr trackerResponse
-	err = bencode.Unmarshal(res.Body, &tr)
+	tr, err := unmarshalTrackerResponse(res.Body)
 	if err != nil {
 		return fmt.Errorf("error decoding tracker response: %w", err)
 	}
@@ -96,6 +97,45 @@ func (t *Torrent) Announce(peerID string, port uint16) error {
 	}
 	t.Peers = peers
 	return nil
+}
+
+func unmarshalTrackerResponse(r io.Reader) (trackerResponse, error) {
+	val, err := bencodecustom.Parse(bufio.NewReader(r))
+	if err != nil {
+		return trackerResponse{}, err
+	}
+	rawMap, ok := val.(map[string]any)
+	if !ok {
+		return trackerResponse{}, fmt.Errorf("error converting tracker response to map[string]any")
+	}
+	if reason, err := safeGet[string](rawMap, "failure reason"); err == nil {
+		return trackerResponse{FailureReason: reason}, nil
+	}
+	t := trackerResponse{}
+	interval, err := safeGet[int](rawMap, "interval")
+	if err != nil {
+		return t, err
+	}
+	t.Interval = interval
+	peers, err := safeGet[string](rawMap, "peers")
+	if err != nil {
+		return t, err
+	}
+	t.Peers = peers
+	return t, nil
+}
+
+func safeGet[T any](m map[string]any, key string) (T, error) {
+	var zero T
+	val, found := m[key]
+	if !found {
+		return zero, fmt.Errorf("key '%s' not found in map", key)
+	}
+	typedVal, ok := val.(T)
+	if !ok {
+		return zero, fmt.Errorf("key '%s' exists but is type %T, not the expected type", key, val)
+	}
+	return typedVal, nil
 }
 
 func (t *Torrent) calculatePieceSize(index int) int {

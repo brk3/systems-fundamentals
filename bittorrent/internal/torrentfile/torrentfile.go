@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 
-	jackpal "github.com/jackpal/bencode-go"
 	"go-bt-learning.brk3.github.io/internal/bencodecustom"
 )
 
@@ -17,8 +16,8 @@ import (
 type bencodeInfo struct {
 	Length      int    `bencode:"length"`
 	Name        string `bencode:"name"`
-	PieceLength int    `bencode:"piece length"`
 	Pieces      string `bencode:"pieces"`
+	PieceLength int    `bencode:"piece length"`
 }
 
 type bencodeTorrent struct {
@@ -40,7 +39,7 @@ type TorrentFile struct {
 }
 
 func NewTorrentFile(r io.Reader) (TorrentFile, error) {
-	b, err := Unmarshal(bufio.NewReader(r))
+	b, err := unmarshal(bufio.NewReader(r))
 	if err != nil {
 		return TorrentFile{}, err
 	}
@@ -52,11 +51,7 @@ func NewTorrentFile(r io.Reader) (TorrentFile, error) {
 	}
 	tf := TorrentFile{}
 	tf.PieceHashes = pieceHashes
-	h, err := b.Info.InfoHash()
-	if err != nil {
-		return TorrentFile{}, err
-	}
-	tf.InfoHash = h
+	tf.InfoHash = sha1.Sum(b.Info.marshal())
 	tf.Announce = b.Announce
 	tf.PieceLength = b.Info.PieceLength
 	tf.Length = b.Info.Length
@@ -64,7 +59,7 @@ func NewTorrentFile(r io.Reader) (TorrentFile, error) {
 	return tf, nil
 }
 
-func Unmarshal(b *bufio.Reader) (bencodeTorrent, error) {
+func unmarshal(b *bufio.Reader) (bencodeTorrent, error) {
 	val, err := bencodecustom.Parse(b)
 	if err != nil {
 		return bencodeTorrent{}, err
@@ -84,6 +79,17 @@ func Unmarshal(b *bufio.Reader) (bencodeTorrent, error) {
 		},
 	}
 	return bt, nil
+}
+
+func (i bencodeInfo) marshal() []byte {
+	buf := bytes.Buffer{}
+	buf.WriteByte('d')
+	buf.WriteString(fmt.Sprintf("6:lengthi%se", strconv.Itoa(i.Length)))
+	buf.WriteString(fmt.Sprintf("4:name%s:%s", strconv.Itoa(len(i.Name)), i.Name))
+	buf.WriteString(fmt.Sprintf("12:piece lengthi%se", strconv.Itoa(i.PieceLength)))
+	buf.WriteString(fmt.Sprintf("6:pieces%s:%s", strconv.Itoa(len(i.Pieces)), i.Pieces))
+	buf.WriteByte('e')
+	return buf.Bytes()
 }
 
 // buildTrackerURL combines the torrentfile's announce url with several key parameters namely our
@@ -106,14 +112,4 @@ func (t *TorrentFile) BuildTrackerURL(peerID string, port uint16) (string, error
 	}
 	base.RawQuery = params.Encode()
 	return base.String(), nil
-}
-
-// InfoHash uniquely identifies files when we talk to trackers and peers
-func (i bencodeInfo) InfoHash() ([20]byte, error) {
-	buf := bytes.Buffer{}
-	err := jackpal.Marshal(&buf, i)
-	if err != nil {
-		return [20]byte{}, err
-	}
-	return sha1.Sum(buf.Bytes()), err
 }
