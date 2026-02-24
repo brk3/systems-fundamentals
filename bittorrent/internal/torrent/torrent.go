@@ -12,7 +12,6 @@ import (
 	"go-bt-learning.brk3.github.io/internal/bitfield"
 	"go-bt-learning.brk3.github.io/internal/client"
 	"go-bt-learning.brk3.github.io/internal/message"
-	"go-bt-learning.brk3.github.io/internal/peer"
 	"go-bt-learning.brk3.github.io/internal/torrentfile"
 )
 
@@ -26,7 +25,7 @@ const (
 
 type Torrent struct {
 	File     torrentfile.TorrentFile
-	Peers    []peer.Peer
+	Peers    []client.Peer
 	Bitfield bitfield.Bitfield
 }
 
@@ -68,14 +67,14 @@ func (t *Torrent) Announce(peerID string, port uint16) error {
 	if err != nil {
 		return err
 	}
-	client := &http.Client{
+	c := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 	req, err := http.NewRequest("GET", tu, nil)
 	if err != nil {
 		return err
 	}
-	res, err := client.Do(req)
+	res, err := c.Do(req)
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func (t *Torrent) Announce(peerID string, port uint16) error {
 	if tr.FailureReason != "" {
 		return fmt.Errorf("tracker failed: %s", tr.FailureReason)
 	}
-	peers, err := peer.Unmarshal([]byte(tr.Peers))
+	peers, err := client.Unmarshal([]byte(tr.Peers))
 	if err != nil {
 		return fmt.Errorf("error parsing peers: %w", err)
 	}
@@ -150,7 +149,7 @@ func (t *Torrent) calculateBoundsForPiece(index int) (begin, end int) {
 	return prevEnd, prevEnd + t.calculatePieceSize(index)
 }
 
-func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
+func (t *Torrent) startDownloadWorker(peer client.Peer, workQueue chan pieceWork, resQueue chan pieceResult) {
 	c, err := client.NewClient(peer, t.File.InfoHash)
 	if err != nil {
 		fmt.Printf("%s: error creating client for peer: %v\n", peer.String(), err)

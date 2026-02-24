@@ -1,4 +1,4 @@
-package handshake
+package client
 
 // Handshake is a special message that a peer uses to identify itself
 type Handshake struct {

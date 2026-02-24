@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"go-bt-learning.brk3.github.io/internal/bitfield"
-	"go-bt-learning.brk3.github.io/internal/handshake"
 	"go-bt-learning.brk3.github.io/internal/message"
-	"go-bt-learning.brk3.github.io/internal/peer"
 )
 
 // PeerID is a 20 byte identifier for our client
@@ -20,17 +18,17 @@ type Client struct {
 	Conn     net.Conn
 	Choked   bool
 	Bitfield bitfield.Bitfield
-	Peer     peer.Peer
+	Peer     Peer
 }
 
-func NewClient(peer peer.Peer, infoHash [20]byte) (*Client, error) {
+func NewClient(peer Peer, infoHash [20]byte) (*Client, error) {
 	conn, err := net.DialTimeout("tcp", peer.String(), 3*time.Second)
 	if err != nil {
 		return nil, err
 	}
 	p := [20]byte{}
 	copy(p[:], PeerID)
-	h := handshake.Handshake{
+	h := Handshake{
 		Pstr:     "BitTorrent protocol",
 		InfoHash: infoHash,
 		PeerID:   p,
@@ -100,20 +98,20 @@ func (c *Client) Connect() (io.ReadWriteCloser, error) {
 	return conn, nil
 }
 
-func doHandshake(rw io.ReadWriter, h handshake.Handshake, p peer.Peer) (handshake.Handshake, error) {
+func doHandshake(rw io.ReadWriter, h Handshake, p Peer) (Handshake, error) {
 	_, err := rw.Write(h.Serialize())
 	if err != nil {
-		return handshake.Handshake{}, err
+		return Handshake{}, err
 	}
 	res := make([]byte, 68)
 	_, err = io.ReadFull(rw, res)
 	if err != nil {
-		return handshake.Handshake{}, err
+		return Handshake{}, err
 	}
-	hr := handshake.Handshake{}
+	hr := Handshake{}
 	hr.Deserialize(res)
 	if hr.InfoHash != h.InfoHash {
-		return handshake.Handshake{}, fmt.Errorf("%s: infohash from peer (%s) doesn't match what we asked for (%s)\n",
+		return Handshake{}, fmt.Errorf("%s: infohash from peer (%s) doesn't match what we asked for (%s)\n",
 			p.String(), hr.InfoHash, h.InfoHash)
 	}
 	return hr, nil
