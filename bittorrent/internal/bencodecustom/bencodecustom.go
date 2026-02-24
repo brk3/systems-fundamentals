@@ -91,6 +91,9 @@ func parseString(b *bufio.Reader) (string, error) {
 		return "", err
 	}
 	sLen, err := strconv.Atoi(l[:len(l)-1])
+	if err != nil {
+		return "", err
+	}
 	buf := make([]byte, sLen)
 	_, err = io.ReadFull(b, buf)
 	if err != nil {

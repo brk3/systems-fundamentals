@@ -69,6 +69,9 @@ func unmarshal(b *bufio.Reader) (bencodeTorrent, error) {
 		return bencodeTorrent{}, fmt.Errorf("error converting Parse response to map[string]any")
 	}
 	info, ok := t["info"].(map[string]any)
+	if !ok {
+		return bencodeTorrent{}, fmt.Errorf("error converting Info from response to map[string]any")
+	}
 	bt := bencodeTorrent{
 		Announce: t["announce"].(string),
 		Info: bencodeInfo{

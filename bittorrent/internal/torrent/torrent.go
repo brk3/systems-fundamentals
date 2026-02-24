@@ -43,7 +43,6 @@ type pieceResult struct {
 }
 
 type pieceProgress struct {
-	index      int
 	client     *client.Client
 	buf        []byte
 	downloaded int
